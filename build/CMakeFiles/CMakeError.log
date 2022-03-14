@@ -1,0 +1,51 @@
+Performing C++ SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/tatsu/ccbench/bamboo/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/ninja cmTC_e9858 && [1/2] Building CXX object CMakeFiles/cmTC_e9858.dir/src.cxx.o
+[2/2] Linking CXX executable cmTC_e9858
+FAILED: cmTC_e9858 
+: && /usr/bin/c++   CMakeFiles/cmTC_e9858.dir/src.cxx.o -o cmTC_e9858   && :
+CMakeFiles/cmTC_e9858.dir/src.cxx.o: 関数 `main' 内:
+src.cxx:(.text+0x3e): `pthread_create' に対する定義されていない参照です
+src.cxx:(.text+0x4a): `pthread_detach' に対する定義されていない参照です
+src.cxx:(.text+0x56): `pthread_cancel' に対する定義されていない参照です
+src.cxx:(.text+0x67): `pthread_join' に対する定義されていない参照です
+src.cxx:(.text+0x7b): `pthread_atfork' に対する定義されていない参照です
+collect2: error: ld returned 1 exit status
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/tatsu/ccbench/bamboo/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/ninja cmTC_fcc09 && [1/2] Building CXX object CMakeFiles/cmTC_fcc09.dir/CheckFunctionExists.cxx.o
+[2/2] Linking CXX executable cmTC_fcc09
+FAILED: cmTC_fcc09 
+: && /usr/bin/c++ -DCHECK_FUNCTION_EXISTS=pthread_create  CMakeFiles/cmTC_fcc09.dir/CheckFunctionExists.cxx.o -o cmTC_fcc09  -lpthreads && :
+/usr/bin/ld: -lpthreads が見つかりません
+collect2: error: ld returned 1 exit status
+ninja: build stopped: subcommand failed.
+
+
+
