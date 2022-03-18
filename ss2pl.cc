@@ -72,11 +72,11 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
   {
     makeProcedure(trans.pro_set_, rnd, zipf, FLAGS_tuple_num, FLAGS_max_ope, FLAGS_thread_num,
                   FLAGS_rratio, FLAGS_rmw, FLAGS_ycsb, false, thid, myres);
+    thread_timestamp[thid] = __atomic_add_fetch(&central_timestamp, 1, __ATOMIC_SEQ_CST);
   RETRY:
     thread_stats[thid] = 0;
     commit_semaphore[thid] = 0;
     op_counter = 0;
-    thread_timestamp[thid] = __atomic_add_fetch(&central_timestamp, 1, __ATOMIC_SEQ_CST);
     if (loadAcquire(quit))
       break;
     if (thid == 0)
@@ -121,7 +121,7 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
         ERR;
       }
 
-      if (thread_stats[thid] == 1 || trans.status_ == TransactionStatus::aborted)
+      if (thread_stats[thid] == 1)
       {
         trans.status_ = TransactionStatus::aborted;
         trans.abort();
@@ -172,6 +172,8 @@ try
   alignas(CACHE_LINE_SIZE) bool start = false;
   alignas(CACHE_LINE_SIZE) bool quit = false;
   initResult();
+  printf("Press any key to start\n");
+  int c = getchar();
   std::vector<char> readys(FLAGS_thread_num);
   std::vector<std::thread> thv;
   for (size_t i = 0; i < FLAGS_thread_num; ++i)

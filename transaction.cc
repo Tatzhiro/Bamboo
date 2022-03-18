@@ -175,7 +175,7 @@ void TxExecutor::read(uint64_t key)
 #if ADD_ANALYSIS
   uint64_t start = rdtscp();
 #endif // ADD_ANALYSIS
-
+  // goto FINISH_READ;
   /**
    * read-own-writes or re-read from local read set.
    */
@@ -194,9 +194,10 @@ void TxExecutor::read(uint64_t key)
   tuple = get_tuple(Table, key);
 #endif
   if (readlockAcquire(LockType::SH, key)) goto FINISH_READ;
-  spinWait(key);
+  // spinWait(key);
 
 FINISH_READ:
+read_set_.emplace_back(key, tuple, tuple->val_);
 #if ADD_ANALYSIS
   sres_->local_read_latency_ += rdtscp() - start;
 #endif
@@ -213,8 +214,10 @@ void TxExecutor::write(uint64_t key, bool should_retire)
 #if ADD_ANALYSIS
   uint64_t start = rdtscp();
 #endif
-
+  goto FINISH_WRITE;
   // if it already wrote the key object once.
+  // if (searchWriteSet(key) || searchReadSet(key))
+  //   goto FINISH_WRITE;
   if (searchWriteSet(key))
   {
     goto FINISH_WRITE;
@@ -374,8 +377,7 @@ void TxExecutor::addCommitSemaphore(int t, LockType t_type)
   {
     r = tuple->retired[i];
     retired_type = (LockType)tuple->req_type[r];
-    if (thread_timestamp[t] > thread_timestamp[r] &&
-        conflict(t_type, retired_type))
+    if (conflict(t_type, retired_type))
     {
       __atomic_add_fetch(&commit_semaphore[t], 1, __ATOMIC_SEQ_CST);
       break;
@@ -424,11 +426,11 @@ void TxExecutor::checkWound(vector<int> &list, LockType lock_type, Tuple *tuple,
     t = (*it);
     type = (LockType)tuple->req_type[t];
     has_conflicts = false;
-    if (conflict(lock_type, type))
+    if (thid_ != t && conflict(lock_type, type))
     {
       has_conflicts = true;
     }
-    if (thid_ != t && has_conflicts == true && thread_timestamp[thid_] < thread_timestamp[t])
+    if (has_conflicts == true && thread_timestamp[thid_] < thread_timestamp[t])
     {
       thread_stats[t] = 1;
       it = woundRelease(t, tuple, key);
@@ -458,8 +460,8 @@ void TxExecutor::writelockAcquire(LockType EX_lock, uint64_t key)
       else
       {
         tuple->sortAdd(thid_, tuple->waiters);
+        PromoteWaiters();
       }
-      PromoteWaiters();
       tuple->lock_.w_unlock();
       return;
     }
@@ -817,7 +819,7 @@ bool TxExecutor::readlockAcquire(LockType SH_lock, uint64_t key)
       if (tuple->owners.size() == 0 && 
       (tuple->waiters.size() == 0 || thread_timestamp[thid_] < thread_timestamp[tuple->waiters[0]]))
       {
-        read_set_.emplace_back(key, tuple, tuple->val_);
+        // read_set_.emplace_back(key, tuple, tuple->val_);
         tuple->sortAdd(thid_, tuple->retired);
         addCommitSemaphore(thid_, SH_lock);
         is_retired = true;
@@ -825,8 +827,8 @@ bool TxExecutor::readlockAcquire(LockType SH_lock, uint64_t key)
       else
       {
         tuple->sortAdd(thid_, tuple->waiters);
+        PromoteWaiters();
       }
-      PromoteWaiters();
       tuple->lock_.w_unlock();
       return is_retired;
     }
