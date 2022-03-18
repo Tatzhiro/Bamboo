@@ -38,11 +38,14 @@ public:
     pro_set_.reserve(FLAGS_max_ope);
 
     genStringRepeatedNumber(write_val_, VAL_SIZE, thid);
+    genStringRepeatedNumber(return_val_, VAL_SIZE, thid);
   }
 
   SetElement<Tuple> *searchReadSet(uint64_t key);
 
   SetElement<Tuple> *searchWriteSet(uint64_t key);
+
+  void warmupTuple(uint64_t key);
 
   void begin();
 

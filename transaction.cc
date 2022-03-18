@@ -108,6 +108,27 @@ inline SetElement<Tuple> *TxExecutor::searchWriteSet(uint64_t key)
   return nullptr;
 }
 
+void TxExecutor::warmupTuple(uint64_t key) {
+#if MASSTREE_USE
+  tuple = MT.get_value(key);
+#else
+  tuple = get_tuple(Table, key);
+#endif
+  tuple->retired.emplace_back(thid_);
+  tuple->remove(thid_, tuple->retired);
+  tuple->owners.emplace_back(thid_);
+  tuple->remove(thid_, tuple->owners);
+  tuple->waiters.emplace_back(thid_);
+  tuple->remove(thid_, tuple->waiters);
+
+  memcpy(tuple->val_, write_val_, VAL_SIZE);
+  for (unsigned int i = 0; i < FLAGS_thread_num; ++i) {
+    memcpy(tuple->prev_val_[i], tuple->val_, VAL_SIZE);
+    tuple->req_type[i] = 1;
+    tuple->req_type[i] = 0;
+  }
+}
+
 /**
  * @brief function about abort.
  * Clean-up local read/write set.
@@ -175,7 +196,6 @@ void TxExecutor::read(uint64_t key)
 #if ADD_ANALYSIS
   uint64_t start = rdtscp();
 #endif // ADD_ANALYSIS
-  // goto FINISH_READ;
   /**
    * read-own-writes or re-read from local read set.
    */
@@ -194,10 +214,9 @@ void TxExecutor::read(uint64_t key)
   tuple = get_tuple(Table, key);
 #endif
   if (readlockAcquire(LockType::SH, key)) goto FINISH_READ;
-  // spinWait(key);
+  spinWait(key);
 
 FINISH_READ:
-read_set_.emplace_back(key, tuple, tuple->val_);
 #if ADD_ANALYSIS
   sres_->local_read_latency_ += rdtscp() - start;
 #endif
@@ -214,7 +233,6 @@ void TxExecutor::write(uint64_t key, bool should_retire)
 #if ADD_ANALYSIS
   uint64_t start = rdtscp();
 #endif
-  goto FINISH_WRITE;
   // if it already wrote the key object once.
   // if (searchWriteSet(key) || searchReadSet(key))
   //   goto FINISH_WRITE;
@@ -819,7 +837,7 @@ bool TxExecutor::readlockAcquire(LockType SH_lock, uint64_t key)
       if (tuple->owners.size() == 0 && 
       (tuple->waiters.size() == 0 || thread_timestamp[thid_] < thread_timestamp[tuple->waiters[0]]))
       {
-        // read_set_.emplace_back(key, tuple, tuple->val_);
+        read_set_.emplace_back(key, tuple, tuple->val_);
         tuple->sortAdd(thid_, tuple->retired);
         addCommitSemaphore(thid_, SH_lock);
         is_retired = true;

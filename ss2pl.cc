@@ -53,7 +53,6 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
   Backoff backoff(FLAGS_clocks_per_us);
   int op_counter;
   int last_retire = FLAGS_max_ope * RETIRERATIO;
-
 #if MASSTREE_USE
   MasstreeWrapper<Tuple>::thread_init(int(thid));
 #endif
@@ -64,7 +63,6 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
   // printf("sysconf(_SC_NPROCESSORS_CONF) %ld\n",
   // sysconf(_SC_NPROCESSORS_CONF));
 #endif // Linux
-
   storeRelease(ready, 1);
   while (!loadAcquire(start))
     _mm_pause();
@@ -156,6 +154,31 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
   return;
 }
 
+void touchTuples([[maybe_unused]] size_t thid, uint64_t start, uint64_t end) {
+  Result &myres = std::ref(SS2PLResult[thid]);
+  TxExecutor trans(thid, (Result *)&myres);
+  for (auto i = start; i <= end; ++i) {
+    trans.warmupTuple(i);
+  }  
+}
+
+void warmup() {
+  cout << "begin warm up" << endl;
+  size_t maxthread = decideParallelBuildNumber(FLAGS_tuple_num);
+  std::vector<std::thread> thv;
+  for (size_t i = 0; i < maxthread; ++i) {
+    thv.emplace_back(touchTuples, i, i * (FLAGS_tuple_num / maxthread),
+                     (i + 1) * (FLAGS_tuple_num / maxthread) - 1);
+  }
+  for (auto &th : thv) th.join();
+  for (unsigned int i = 0; i < FLAGS_thread_num; ++i)
+  {
+    SS2PLResult[i].local_abort_counts_ = 0;
+    SS2PLResult[i].local_commit_counts_ = 0;
+  }
+  cout << "finish warm up" << endl;
+}
+
 int main(int argc, char *argv[])
 try
 {
@@ -172,14 +195,15 @@ try
   alignas(CACHE_LINE_SIZE) bool start = false;
   alignas(CACHE_LINE_SIZE) bool quit = false;
   initResult();
-  printf("Press any key to start\n");
-  int c = getchar();
+  warmup();
   std::vector<char> readys(FLAGS_thread_num);
   std::vector<std::thread> thv;
   for (size_t i = 0; i < FLAGS_thread_num; ++i)
     thv.emplace_back(worker, i, std::ref(readys[i]), std::ref(start),
                      std::ref(quit));
   waitForReady(readys);
+  printf("Press any key to start\n");
+  int c = getchar();
   storeRelease(start, true);
   for (size_t i = 0; i < FLAGS_extime; ++i)
   {
