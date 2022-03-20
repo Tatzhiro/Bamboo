@@ -52,6 +52,7 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
   FastZipf zipf(&rnd, FLAGS_zipf_skew, FLAGS_tuple_num);
   Backoff backoff(FLAGS_clocks_per_us);
   int op_counter;
+  int count;
   int last_retire = FLAGS_max_ope * RETIRERATIO;
 #if MASSTREE_USE
   MasstreeWrapper<Tuple>::thread_init(int(thid));
@@ -126,11 +127,11 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
         goto RETRY;
       }
     }
-    // int count = 0;
+    count = 0;
     while (commit_semaphore[thid] > 0 && thread_stats[thid] == 0)
     {
-      usleep(1);
-      // count++;
+      // usleep(1);
+      count++;
       // if (count % 10000 == 0)
       // {
       //   printf("TX%d WAITING TOO LONG\n", (int)thid);
@@ -171,11 +172,6 @@ void warmup() {
                      (i + 1) * (FLAGS_tuple_num / maxthread) - 1);
   }
   for (auto &th : thv) th.join();
-  for (unsigned int i = 0; i < FLAGS_thread_num; ++i)
-  {
-    SS2PLResult[i].local_abort_counts_ = 0;
-    SS2PLResult[i].local_commit_counts_ = 0;
-  }
   cout << "finish warm up" << endl;
 }
 
