@@ -160,7 +160,7 @@ void touchTuples([[maybe_unused]] size_t thid, uint64_t start, uint64_t end) {
   TxExecutor trans(thid, (Result *)&myres);
   for (auto i = start; i <= end; ++i) {
     trans.warmupTuple(i);
-  }  
+  } 
 }
 
 void warmup() {
@@ -169,7 +169,7 @@ void warmup() {
   std::vector<std::thread> thv;
   for (size_t i = 0; i < maxthread; ++i) {
     thv.emplace_back(touchTuples, i, i * (FLAGS_tuple_num / maxthread),
-                     (i + 1) * (FLAGS_tuple_num / maxthread) - 1);
+                    (i + 1) * (FLAGS_tuple_num / maxthread) - 1);
   }
   for (auto &th : thv) th.join();
   cout << "finish warm up" << endl;
@@ -198,8 +198,9 @@ try
     thv.emplace_back(worker, i, std::ref(readys[i]), std::ref(start),
                      std::ref(quit));
   waitForReady(readys);
-  printf("Press any key to start\n");
-  int c = getchar();
+  // printf("Press any key to start\n");
+  // int c = getchar();
+  cout << "start" << endl;
   storeRelease(start, true);
   for (size_t i = 0; i < FLAGS_extime; ++i)
   {

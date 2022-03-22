@@ -21,6 +21,7 @@ extern void writeValGenerator(char *writeVal, size_t val_size, size_t thid);
 class TxExecutor {
 public:
   alignas(CACHE_LINE_SIZE) int thid_;
+  uint64_t txid_;
   TransactionStatus status_ = TransactionStatus::inFlight;
   Result *sres_;
   vector <SetElement<Tuple>> read_set_;
@@ -30,9 +31,9 @@ public:
   char write_val_[VAL_SIZE];
   char return_val_[VAL_SIZE];
 
-  Tuple *tuple;
+  // Tuple *tuple;
 
-  TxExecutor(int thid, Result *sres) : thid_(thid), sres_(sres) {
+  TxExecutor(int thid, Result *sres) : thid_(thid), sres_(sres), txid_(thid) {
     read_set_.reserve(FLAGS_max_ope);
     write_set_.reserve(FLAGS_max_ope);
     pro_set_.reserve(FLAGS_max_ope);
@@ -68,29 +69,29 @@ public:
 
   void checkWound(vector<int> &list, LockType lock_type, Tuple *tuple, uint64_t key);
 
-  void PromoteWaiters();
+  void PromoteWaiters(Tuple *tuple);
 
-  void writelockAcquire(LockType lock_type, uint64_t key);
+  void writelockAcquire(LockType lock_type, uint64_t key, Tuple *tuple);
 
-  bool LockRelease(bool is_abort, uint64_t key);
+  bool LockRelease(bool is_abort, uint64_t key, Tuple *tuple);
 
-  void LockRetire(uint64_t key);
+  void LockRetire(uint64_t key, Tuple *tuple);
 
-  bool spinWait(uint64_t key);
+  bool spinWait(uint64_t key, Tuple *tuple);
 
-  bool lockUpgrade(uint64_t key);
+  bool lockUpgrade(uint64_t key, Tuple *tuple);
 
-  void checkLists(uint64_t key);
+  void checkLists(uint64_t key, Tuple *tuple);
 
-  void eraseFromLists(); // erase txn from waiters and owners lists in case of abort during spinwait
+  void eraseFromLists(Tuple *tuple); // erase txn from waiters and owners lists in case of abort during spinwait
 
   vector<int>::iterator woundRelease(int txn, Tuple *tuple, uint64_t key);
   
   void cascadeAbort(int txn, vector<int> all_owners, Tuple *tuple, uint64_t key);
 
-  void addCommitSemaphore(int t, LockType t_type);
+  void addCommitSemaphore(int t, LockType t_type, Tuple *tuple);
 
-  bool readlockAcquire(LockType lock_type, uint64_t key);
+  bool readlockAcquire(LockType lock_type, uint64_t key, Tuple *tuple);
 
   bool readWait(Tuple *tuple, uint64_t key);
   

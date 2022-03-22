@@ -21,18 +21,18 @@ class Tuple
 {
 public:
   alignas(CACHE_LINE_SIZE) RWLock lock_;
+  vector<int> owners;  // *** added by tatsu: writers[i] = 1 means thread i is writing this tuple
+  vector<int> retired; // *** added by tatsu: writers[i] = 1 means thread i is writing this tuple
+  vector<int> waiters; // *** added by tatsu: writers[i] = 1 means thread i is writing this tuple
   char val_[VAL_SIZE];
-  int req_type[224] = {0}; // read -1 : write 1 : no touch 0
+  int8_t req_type[224] = {0}; // read -1 : write 1 : no touch 0
   char prev_val_[224][VAL_SIZE];
 
-  vector<int> retired; // *** added by tatsu: writers[i] = 1 means thread i is writing this tuple
-  vector<int> owners;  // *** added by tatsu: writers[i] = 1 means thread i is writing this tuple
-  vector<int> waiters; // *** added by tatsu: writers[i] = 1 means thread i is writing this tuple
   
   Tuple() {
-    retired.reserve(224);
-    owners.reserve(224);
-    waiters.reserve(224);
+    retired.reserve(10);
+    owners.reserve(1);
+    waiters.reserve(32);
   }
 
   bool sortAdd(int txn, vector<int> &list);
