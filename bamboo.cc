@@ -33,7 +33,8 @@
 
 #define BAMBOO
 #define RETIRERATIO (1 - 0.15)
-// #define PRINTF
+#define NONTS
+// #define RANDOM
 // #define INTERACTIVESLEEP (100)
 
 long long int central_timestamp = 0; //*** added by tatsu
@@ -71,8 +72,15 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
   {
     makeProcedure(trans.pro_set_, rnd, zipf, FLAGS_tuple_num, FLAGS_max_ope, FLAGS_thread_num,
                   FLAGS_rratio, FLAGS_rmw, FLAGS_ycsb, false, thid, myres);
+#ifndef NONTS
+#ifndef RANDOM
     thread_timestamp[thid] = __atomic_add_fetch(&central_timestamp, 1, __ATOMIC_SEQ_CST);
+#endif
+#endif
   RETRY:
+#ifdef RANDOM
+    thread_timestamp[thid] = rnd.next();
+#endif
     thread_stats[thid] = 0;
     commit_semaphore[thid] = 0;
     op_counter = 0;
@@ -175,10 +183,21 @@ void warmup() {
   cout << "finish warm up" << endl;
 }
 
+void calcSD() {
+  double mean = SS2PLResult[0].total_commit_counts_ / FLAGS_thread_num;
+  double sum = 0;
+  for (unsigned int i = 0; i < FLAGS_thread_num; ++i)
+  {
+    sum += pow(SS2PLResult[i].local_commit_counts_ - mean, 2);
+  }
+  double sd = sqrt(sum / FLAGS_thread_num);
+  cout << "fairness:\t" << sd << endl;
+}
+
 int main(int argc, char *argv[])
 try
 {
-  gflags::SetUsageMessage("2PL benchmark.");
+  gflags::SetUsageMessage("Bamboo benchmark.");
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   chkArg();
   makeDB();
@@ -200,7 +219,7 @@ try
   waitForReady(readys);
   // printf("Press any key to start\n");
   // int c = getchar();
-  cout << "start" << endl;
+  // cout << "start" << endl;
   storeRelease(start, true);
   for (size_t i = 0; i < FLAGS_extime; ++i)
   {
@@ -216,7 +235,13 @@ try
   }
   ShowOptParameters();
   SS2PLResult[0].displayAllResult(FLAGS_clocks_per_us, FLAGS_extime, FLAGS_thread_num);
-
+  // cout << "first thread commit:\t" << SS2PLResult[0].local_commit_counts_ << endl;
+  // cout << "last thread commit:\t" << SS2PLResult[FLAGS_thread_num - 1].local_commit_counts_ << endl;
+  // calcSD();
+  // for (unsigned int i = 0; i < FLAGS_thread_num; ++i)
+  // {
+  //   printf("%d,", SS2PLResult[i].local_commit_counts_);
+  // }
   return 0;
 }
 catch (bad_alloc)

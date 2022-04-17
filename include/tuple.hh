@@ -30,9 +30,9 @@ public:
 
   
   Tuple() {
-    retired.reserve(10);
-    owners.reserve(1);
-    waiters.reserve(32);
+    retired.reserve(224);
+    owners.reserve(224);
+    waiters.reserve(224);
   }
 
   bool sortAdd(int txn, vector<int> &list);
