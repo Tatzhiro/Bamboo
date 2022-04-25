@@ -1,7 +1,16 @@
 # Bamboo
 
+## Publicized Experiments
+In build directory, execute:
+```
+$ ../script/low_contention.sh
+$ ../script/high_contentionA.sh
+$ ../script/high_contentionB.sh
+```
+Please switch between Bamboo, TID, FairTID, and RandID each time.
+
 ## How to use
-- Build masstree
+- Build masstree (optional)
 ```
 $ cd ../
 $ ./bootstrap.sh
@@ -40,8 +49,6 @@ default : `0`
 default : `1`
 - `VAL_SIZE` : Value of key-value size. In other words, payload size.<br>
 default : `4`
-- `DLR0` : Dead lock resolution is timeout.
-- `DLR1` : Dead lock resolution is no-wait.
 
 ## Optimizations
 - Backoff.
