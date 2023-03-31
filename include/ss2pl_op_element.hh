@@ -1,18 +1,37 @@
 #pragma once
 
+#include <memory>
+
 #include "../../include/op_element.hh"
+#include "../../include/tuple_body.hh"
 
 template<typename T>
-class SetElement : public OpElement<T> {
+class ReadElement : public OpElement<T> {
 public:
   using OpElement<T>::OpElement;
+  TupleBody body_;
 
-  char val_[VAL_SIZE];
+  ReadElement(Storage s, std::string_view key, T* rcdptr, TupleBody&& body)
+          : OpElement<T>::OpElement(s, key, rcdptr), body_(std::move(body)) {}
 
-  SetElement(uint64_t key, T *rcdptr) : OpElement<T>::OpElement(key, rcdptr) {}
+  bool operator<(const ReadElement &right) const {
+    if (this->storage_ != right.storage_) return this->storage_ < right.storage_;
+    return this->key_ < right.key_;
+  }
+};
 
-  SetElement(uint64_t key, T *rcdptr, char *val)
-          : OpElement<T>::OpElement(key, rcdptr) {
-    memcpy(this->val_, val, VAL_SIZE);
+template<typename T>
+class WriteElement : public OpElement<T> {
+public:
+  using OpElement<T>::OpElement;
+  TupleBody body_;
+
+  WriteElement(Storage s, std::string_view key, T* rcdptr, TupleBody&& body, OpType op)
+          : OpElement<T>::OpElement(s, key, rcdptr, op), body_(std::move(body)) {
+  }
+
+  bool operator<(const WriteElement &right) const {
+    if (this->storage_ != right.storage_) return this->storage_ < right.storage_;
+    return this->key_ < right.key_;
   }
 };

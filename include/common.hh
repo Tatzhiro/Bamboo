@@ -40,6 +40,15 @@ DEFINE_uint64(tuple_num, 1000000, "Total number of records.");
 DEFINE_bool(ycsb, true,
             "True uses zipf_skew, false uses faster random generator.");
 DEFINE_double(zipf_skew, 0, "zipf skew. 0 ~ 0.999...");
+
+DEFINE_uint64(ronly_ratio, 0, "ratio of read-only online transaction.");
+DEFINE_uint64(batch_th_num, 0, "Number of batch worker threads.");
+DEFINE_uint64(batch_ratio, 0, "ratio of batch transaction.");
+DEFINE_uint64(batch_max_ope, 1000,
+              "Total number of operations per single batch transaction.");
+DEFINE_uint64(batch_rratio, 100, "read ratio of single batch transaction.");
+DEFINE_uint64(batch_tuples, 0, "Number of update-only records for batch transaction.");
+DEFINE_bool(batch_simple_rr, false, "No one touches update-only records of batch transaction.");
 #else
 DECLARE_uint64(clocks_per_us);
 DECLARE_uint64(extime);
@@ -50,13 +59,21 @@ DECLARE_uint64(thread_num);
 DECLARE_uint64(tuple_num);
 DECLARE_bool(ycsb);
 DECLARE_double(zipf_skew);
+
+DECLARE_uint64(ronly_ratio);
+DECLARE_uint64(batch_th_num);
+DECLARE_uint64(batch_ratio);
+DECLARE_uint64(batch_max_ope);
+DECLARE_uint64(batch_rratio);
+DECLARE_uint64(batch_tuples);
+DECLARE_bool(batch_simple_rr);
 #endif
 
 class TxExecutor;
 
 alignas(CACHE_LINE_SIZE) GLOBAL Tuple *Table;
 alignas(CACHE_LINE_SIZE) GLOBAL int thread_stats[224];
-alignas(CACHE_LINE_SIZE) GLOBAL int thread_timestamp[224];
+alignas(CACHE_LINE_SIZE) GLOBAL uint64_t_64byte thread_timestamp[224];
 alignas(CACHE_LINE_SIZE) GLOBAL int commit_semaphore[224];
 alignas(CACHE_LINE_SIZE) GLOBAL TxExecutor *TxPointers[224];
 // alignas(CACHE_LINE_SIZE) GLOBAL int pending_commit[224];

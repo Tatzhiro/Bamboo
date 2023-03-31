@@ -30,9 +30,10 @@
 #include "include/result.hh"
 #include "include/transaction.hh"
 #include "include/util.hh"
+#include "../include/ycsb.hh"
 
 #define BAMBOO
-#define RETIRERATIO (1 - 0.15)
+#define RETIRERATIO (1 - 0.05)
 // #define INTERACTIVESLEEP (100)
 
 long long int central_timestamp = 0; //*** added by tatsu
@@ -44,10 +45,10 @@ void Tuple::ownersAdd(int txn)
   owners.emplace_back(txn);
 }
 
-void waitSema(int thid)
+void waitSema(int thid, TxExecutor &trans)
 {
   int count = 0;
-  while (commit_semaphore[thid] > 0 && thread_stats[thid] == 0)
+  while (commit_semaphore[thid] > 0 && thread_stats[thid] == 0 || trans.status_ == TransactionStatus::aborted)
   {
     count++;
     // _mm_pause();
@@ -62,8 +63,9 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
   rnd.init();
   TxExecutor trans(thid, (Result *)&myres);
   TxPointers[thid] = &trans;
-  FastZipf zipf(&rnd, FLAGS_zipf_skew, FLAGS_tuple_num);
   Backoff backoff(FLAGS_clocks_per_us);
+  YcsbWorkload workload;
+
   int op_counter;
   int count;
   int last_retire = FLAGS_max_ope * RETIRERATIO;
@@ -140,14 +142,14 @@ void worker(size_t thid, char &ready, const bool &start, const bool &quit)
         ERR;
       }
 
-      if (thread_stats[thid] == 1)
+      if (thread_stats[thid] == 1 || trans.status_ == TransactionStatus::aborted)
       {
         trans.abort();
         goto RETRY;
       }
     }
-    waitSema(thid);
-    if (thread_stats[thid] == 1)
+    waitSema(thid, trans);
+    if (thread_stats[thid] == 1 || trans.status_ == TransactionStatus::aborted)
     {
       trans.abort();
       goto RETRY;
@@ -211,7 +213,7 @@ try
   alignas(CACHE_LINE_SIZE) bool start = false;
   alignas(CACHE_LINE_SIZE) bool quit = false;
   initResult();
-  warmup();
+  // warmup();
   std::vector<char> readys(FLAGS_thread_num);
   std::vector<std::thread> thv;
   for (size_t i = 0; i < FLAGS_thread_num; ++i)

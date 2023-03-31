@@ -7,6 +7,7 @@
 #include "../../include/cache_line_size.hh"
 #include "../../include/inline.hh"
 #include "../../include/rwlock.hh"
+#include "../../include/tuple_body.hh"
 
 using namespace std;
 
@@ -20,10 +21,11 @@ class Tuple
 {
 public:
   alignas(CACHE_LINE_SIZE) RWLock lock_;
+  TupleBody body_;
   vector<int> owners;  // *** added by tatsu: writers[i] = 1 means thread i is writing this tuple
   vector<int> retired; // *** added by tatsu: writers[i] = 1 means thread i is writing this tuple
   vector<int> waiters; // *** added by tatsu: writers[i] = 1 means thread i is writing this tuple
-  char val_[VAL_SIZE];
+  // char val_[VAL_SIZE];
   int8_t req_type[224] = {0}; // read -1 : write 1 : no touch 0
   // bitset<224> req_stats;  
   // bitset<224> req_type;  
@@ -48,4 +50,9 @@ public:
   bool ownersRemove(int txn);
   bool remove(int txn, vector<int> &list);
   vector<int>::iterator itrRemove(int txn);
+
+  void init([[maybe_unused]] size_t thid, TupleBody&& body, [[maybe_unused]] void* p) {
+    // for initializer
+    body_ = std::move(body);
+  }
 };
